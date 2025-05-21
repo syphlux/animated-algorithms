@@ -37,7 +37,7 @@ class Algorithm(MovingCameraScene):
             key=lambda d: sum([np.linalg.norm(oc - (center + d)) for oc in other_centers])
         )
         
-    def graham(self, points: list[tuple[float,float]]):
+    def graham_scan(self, points: list[tuple[float,float]]):
 
         assert isinstance(points, list) and len(points) > 2, "points must be a list of size > 2"
         assert all([
@@ -57,6 +57,8 @@ class Algorithm(MovingCameraScene):
             y_range=(-100, 100),
             background_line_style={"stroke_color": WHITE, "stroke_opacity": 0.2}
         )
+        number_plane.x_axis.set_opacity(0.2)
+        number_plane.y_axis.set_opacity(0.2)
         self.play(FadeIn(number_plane), run_time=0.5)
         
         # VDict that maps each point to its Dot object on the scene
@@ -176,4 +178,56 @@ class Algorithm(MovingCameraScene):
             (6.57, 0.36), (4.65, 2.29), (5.29, 0.36), (3.38, 2.91), (4.03, 1), (2.75, 1), (5.29, -1.573), 
             (3.38, -0.911), (5.94, -2.18), (2.11, -0.911), (4.66, -2.2), (3.38, -2.18), (7.21, -2.782)
         ]
-        self.graham(points)
+        self.graham_scan(points)
+
+
+def orientation(p1: tuple[float,float], p2: tuple[float,float], p3: tuple[float,float]):
+    x1, y1, x2, y2, x3, y3 = *p1, *p2, *p3
+    diff = (y3-y2)*(x2-x1) - (y2-y1)*(x3-x2)
+    return COUNTERCLOCKWISE if diff > 0 else (CLOCKWISE if diff < 0 else COLLINEAR)
+
+
+def dist(p1: tuple[float,float], p2: tuple[float,float]):
+    x1, y1, x2, y2 = *p1, *p2
+    return math.sqrt((y2-y1)**2 + (x2-x1)**2)
+
+
+def polar_angle(p1: tuple[float,float], p2: tuple[float,float]):
+    dy = p1[1] - p2[1]
+    dx = p1[0] - p2[0]
+    return math.atan2(dy, dx)
+
+    
+def graham_scan(points: list[tuple[float,float]]):
+
+    assert isinstance(points, list) and len(points) > 2, "points must be a list of size > 2"
+    assert all([
+        isinstance(p, tuple) 
+        and len(p) == 2 
+        and isinstance(p[0], (int, float))
+        and isinstance(p[1], (int, float))
+        for p in points
+    ]), "a point must be a tuple of 2 numbers"
+
+    p0 = min(points, key=lambda p: (p[1], p[0]))
+    points.sort(key=lambda p: (polar_angle(p, p0), dist(p, p0)))
+
+    hull = [p0]
+    for i in range(1, len(points)):
+        while len(hull) >= 2 and \
+        orientation(hull[-2], hull[-1], points[i]) != COUNTERCLOCKWISE:
+            hull.pop()
+        hull.append(points[i])
+
+    return hull
+
+
+if __name__ == '__main__':
+    points = [
+        (5.29, 3.48), (9.75, -1.54), (11.02, -0.28), (10.39, -0.28), (11.02, 0.98), 
+        (8.48, -0.911), (9.75, 1), (9.72, 1.6), (9.12, 2.91), (7.85, 2.29), (7.21, 1.62), 
+        (6.57, 0.36), (4.65, 2.29), (5.29, 0.36), (3.38, 2.91), (4.03, 1), (2.75, 1), (5.29, -1.573), 
+        (3.38, -0.911), (5.94, -2.18), (2.11, -0.911), (4.66, -2.2), (3.38, -2.18), (7.21, -2.782)
+    ]
+    print(graham_scan(points))
+    
