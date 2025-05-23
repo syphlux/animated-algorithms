@@ -108,6 +108,10 @@ class Array(VGroup):
                 self.elems[j].text.animate.shift(DOWN*2),
                 run_time=0.25
             )
+            self.elems[i].remove(self.elems[i].text)
+            self.elems[i].add(self.elems[j].text)
+            self.elems[j].remove(self.elems[j].text)
+            self.elems[j].add(self.elems[i].text)
             self.elems[i].text, self.elems[j].text = self.elems[j].text, self.elems[i].text
 
     def _reorder(self, scene: Scene, indices: list[int]):
@@ -120,7 +124,6 @@ class Array(VGroup):
             self.elems[idx].index.text = str(i)
         self.elems.submobjects.sort(key=lambda elem: int(elem.index.text))
 
-        
     def sort(self, scene: Scene, reverse: bool=False):
         indices = sorted(list(range(len(self.values))), key=lambda i: self.values[i], reverse=reverse)
         self._reorder(scene, indices)

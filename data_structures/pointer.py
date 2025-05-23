@@ -21,7 +21,7 @@ class Pointer(VGroup):
             key=lambda d: sum([np.linalg.norm(oc - (center + d)) for oc in other_centers])
         )
 
-    def point_at(self, scene: Scene, pointed_at, direction=DOWN, buff=0.5, points_to_avoid=None):
+    def point_at(self, scene: Scene, pointed_at, direction=DOWN, buff=0.5, points_to_avoid=None, run_time=0.5):
         if isinstance(direction, str) and direction == 'auto':
             if not isinstance(points_to_avoid, list) or points_to_avoid == []:
                 direction = DOWN
@@ -30,7 +30,8 @@ class Pointer(VGroup):
         rotation_degrees = 90+np.degrees(np.arctan2(direction[1], direction[0]))
         scene.play(
             self.shape.animate.next_to(pointed_at, direction, buff).rotate((rotation_degrees-self.angle)*DEGREES),
-            self.label.animate.next_to(pointed_at, direction*2, buff)
+            self.label.animate.next_to(pointed_at, direction*2, buff+0.25),
+            run_time=run_time
         )
         self.angle = rotation_degrees
 
