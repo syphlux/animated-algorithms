@@ -1,4 +1,6 @@
 from manim import *
+import random
+
 
 class ArrayElement(VGroup):
     def __init__(self, value, index=0):
@@ -80,27 +82,46 @@ class Array(VGroup):
                 )
             self.elems[i].text, self.elems[j].text = self.elems[j].text, self.elems[i].text
 
-    
-
-
+    def _reorder(self, indices: list[int], scene: Scene|None=None):
+        self.values = [self.values[idx] for idx in indices]
+        if scene:
+            scene.play(
+                *[self.elems[idx].text.animate.move_to(self.elems[i].text) for i, idx in enumerate(indices)]
+                +[self.elems[idx].box.animate.move_to(self.elems[i].box) for i, idx in enumerate(indices)],
+                run_time=1
+            )
+            scene.remove(self.elems)
+        self.elems = VGroup([ArrayElement(v, i) for i, v in enumerate(self.values)]).arrange(RIGHT, buff=0.0).move_to(self.array_center)
+        if scene:
+            scene.add(self.elems)
         
-        
+    def sort(self, reverse: bool=False, scene: Scene|None=None):
+        indices = sorted(list(range(len(self.values))), key=lambda i: self.values[i], reverse=reverse)
+        self._reorder(indices, scene)
 
+    def shuffle(self, scene: Scene|None=None):
+        indices = sorted(list(range(len(self.values))), key=lambda i: random.random())
+        self._reorder(indices, scene)
 
 
 
 class TestManim(Scene):
     def construct(self):
         a = Array([20, 35, 1, 8, 100, 2, 5]).display(self)
+        a.shuffle(self)
+        self.wait(2)
+        a.shuffle(self)
+        self.wait(2)
+        a.sort(scene=self)
+        self.wait(2)
+        a.sort(reverse=True, scene=self)
+        self.wait(2)
+        a.shuffle(self)
         self.wait(1)
-        a.pop(self)
-        a.append(0, self)
-        a.pop(self)
-        a.switch(1, 4, self)
-        a.append(50, self)
-        a.switch(1, 4, self)
-        a.switch(1, 6, self)
+        a._reorder([0, 5, 6, 2, 3, 1, 4], self)
         self.wait(1)
+        a._reorder([0, 5, 6, 2, 3, 1, 4], self)
+        
 
 
 
