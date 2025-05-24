@@ -1,51 +1,102 @@
 from manim import *
 import random
-
-
-class ArrayElement(VGroup):
-    def __init__(self, value, index=0):
-        super().__init__()
-        self.value = value
-        self.box = Rectangle(height=1, width=1)
-        self.text = Text(str(value), font_size=32)
-        self.index = Text(str(index), font='Consolas', font_size=24)
-        self._bring_text_and_index()
-        self.add(self.box, self.text, self.index)
-
-    def _bring_text_and_index(self):
-        self.text.move_to(self.box)
-        self.index.next_to(self.box, DOWN)
+import numpy.typing as npt
+from typing_extensions import TypeAlias
+from element import Element
         
+Vector3D: TypeAlias = npt.NDArray[np.float64]
+
 
 class Array(VGroup):
     def __init__(
             self,
             values: list[any],
-            name: str='',
-            array_center=ORIGIN
+            array_label: str=None,
+            array_label_direction: Vector3D=UL,
+            array_label_buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
+            array_label_style: dict={'font_size': 28},
+            array_center: Vector3D=ORIGIN,
+            inter_elem_buff: float=0.0,
+            add_indices: bool=True,
+            max_width: float=config.frame_width*0.9,
+            box_style: VMobject=Square(side_length=1),
+            content_style: dict={'font_size': 32},
+            content_direction: Vector3D=ORIGIN,
+            label_style: dict={'font': 'Consolas', 'font_size': 24, 'color': BLUE},
+            label_direction: Vector3D=DOWN,
+            label_buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
     ):
+        assert isinstance(values, list) and len(values) > 0, \
+            "values must be a non-empty list"
+        
         super().__init__()
         self.values: list = values
         self.n = len(values)
-        self.name = name
+        self.elems = [
+            Element(
+                v, 
+                i if add_indices else None, 
+                box_style, 
+                content_style,
+                content_direction,
+                label_style,
+                label_direction,
+                label_buff
+            ) for i, v in enumerate(values)
+        ]
+        VGroup(self.elems).arrange(RIGHT, buff=inter_elem_buff).move_to(array_center)
+        self.label = Text(
+            str(array_label), **array_label_style
+        ).next_to(self.elems[0], array_label_direction, array_label_buff)
         self.array_center = array_center
-        self.elems = VGroup([ArrayElement(v, i) for i, v in enumerate(values)]).arrange(RIGHT, buff=0.0).move_to(array_center)
-        self.add(self.elems)
+        self.array_label_direction, self.array_label_buff = array_label_direction, array_label_buff
+        self.inter_elem_buff = inter_elem_buff
+        self.add_indices = add_indices
+        self.max_width = max_width
+        self.box_style = box_style
+        self.content_style, self.content_direction = content_style, content_direction
+        self.label_style, self.label_direction, self.label_buff = label_style, label_direction, label_buff
+        self.add(([self.label] if array_label else []) + self.elems)
+        old_width = self.width
+        self.scale_to_fit_width(min(self.width, max_width))
+        self._update_styles_after_scaling(self.width/old_width)
 
-    def display(self, scene: Scene):
-        scene.play(Create(self))
-        return self
+    def _update_styles_after_scaling(self, ratio: float):
+        self.box_style.scale(ratio)
+        self.content_style['font_size'] = self.content_style.get('font_size', 32)*ratio
+        self.label_style['font_size'] = self.label_style.get('font_size', 24)*ratio
+        self.label_buff *= ratio
+        self.inter_elem_buff *= ratio
     
-    def append(self, scene: Scene, value: any):
+    def append(self, scene: Scene, value: any, run_time: float=0.5):
         self.values.append(value)
         self.n += 1
-        elem = ArrayElement(value, self.n-1).next_to(self.elems, RIGHT, buff=1.0)
-        scene.play(Create(elem), run_time=0.25)
-        scene.play(elem.animate.next_to(self.elems, RIGHT, buff=0.0), run_time=0.25)
-        self.elems.add(elem)
-        scene.play(self.animate.move_to(self.array_center), run_time=0.25)
+        new_elem = Element(
+            value, 
+            self.n-1 if self.add_indices else None, 
+            self.box_style, 
+            self.content_style,
+            self.content_direction,
+            self.label_style,
+            self.label_direction,
+            self.label_buff
+        ).next_to(self, RIGHT, buff=self.inter_elem_buff+1.0)
+        scene.play(Create(new_elem), run_time=run_time/3)
+        scene.play(new_elem.animate.next_to(
+            self.elems[-1] if self.n > 1 else self.label, 
+            RIGHT if self.n > 1 else -self.array_label_direction, 
+            buff=self.inter_elem_buff if self.n > 1 else self.array_label_buff
+        ), run_time=run_time/3)
+        self.elems.append(new_elem)
+        self.add(new_elem)
+        old_width = self.width
+        scene.play(
+            self.animate.move_to(self.array_center).scale_to_fit_width(min(self.width, self.max_width)),
+            run_time=run_time/3
+        )
+        self._update_styles_after_scaling(self.width/old_width)
         
-    def insert(self, scene: Scene, idx: int, value: any):
+    def insert(self, scene: Scene, idx: int, value: any, run_time: float=0.5):
         if idx > self.n or idx < -self.n:
             return
         elif -self.n <= idx < 0:
@@ -55,21 +106,42 @@ class Array(VGroup):
         else:
             self.values.insert(idx, value)
             self.n += 1
-            new_elem = ArrayElement(value, idx).next_to(self.elems[idx], UP, buff=1.0)
-            scene.play(Create(new_elem), run_time=0.25)
+            new_elem = Element(
+                value, 
+                idx if self.add_indices else None, 
+                self.box_style, 
+                self.content_style,
+                self.content_direction,
+                self.label_style,
+                self.label_direction,
+                self.label_buff
+            ).next_to(self.elems[idx], UP, buff=1.0)
+            scene.play(Create(new_elem), run_time=run_time/3)
             scene.play(
                 new_elem.animate.move_to(self.elems[idx]),
-                *[elem.animate.shift(RIGHT*elem.width) for elem in self.elems[idx:]],
-                *[Transform(elem.index, Text(
-                    str(int(elem.index.text)+1), font='Consolas', font_size=24).move_to(elem.index).shift(RIGHT*elem.width)
-                ) for elem in self.elems[idx:]]
+                *[elem.animate.shift(
+                    RIGHT*(elem.width + self.inter_elem_buff)
+                ) for elem in self.elems[idx:]],
+                *[Transform(elem.label, Text(
+                    str(int(elem.label.text)+1), **self.label_style).move_to(elem.label).shift(
+                        RIGHT*(elem.width + self.inter_elem_buff)
+                    )
+                ) for elem in self.elems[idx:]] if self.add_indices else [],
+                run_time=run_time/3
             )
-            for elem in self.elems[idx:]:
-                elem.index.text = str(int(elem.index.text)+1)
+            if self.add_indices:
+                for elem in self.elems[idx:]:
+                    elem.label.text = str(int(elem.label.text)+1)
             self.elems.insert(idx, new_elem)
-            scene.play(self.animate.move_to(self.array_center), run_time=0.25)
+            self.add(new_elem)
+            old_width = self.width
+            scene.play(
+                self.animate.move_to(self.array_center).scale_to_fit_width(min(self.width, self.max_width)),
+                run_time=run_time/3
+            )
+            self._update_styles_after_scaling(self.width/old_width)
                 
-    def pop(self, scene: Scene, idx: int=-1):
+    def pop(self, scene: Scene, idx: int=-1, run_time: float=0.5):
         if idx >= self.n or idx < -self.n:
             return
         elif -self.n <= idx < 0:
@@ -77,42 +149,47 @@ class Array(VGroup):
         self.values.pop(idx)
         self.n -= 1
         old_elem = self.elems[idx]
-        scene.play(old_elem.animate.shift(UP*2), run_time=0.25)
+        scene.play(old_elem.animate.shift(UP*2), run_time=run_time/3)
         scene.play(
             Uncreate(old_elem),
-            *[elem.animate.shift(LEFT*elem.width) for elem in self.elems[idx+1:]],
-            *[Transform(elem.index, Text(
-                str(int(elem.index.text)-1), font='Consolas', font_size=24).move_to(elem.index).shift(LEFT*elem.width)
-            ) for elem in self.elems[idx+1:]]
+            *[elem.animate.shift(LEFT*(elem.width + self.inter_elem_buff)) for elem in self.elems[idx+1:]],
+            *[Transform(elem.label, Text(
+                str(int(elem.label.text)-1), **self.label_style).move_to(elem.label).shift(
+                    LEFT*(elem.width + self.inter_elem_buff)
+                ) 
+            ) for elem in self.elems[idx+1:]] if self.add_indices else [],
+            run_time=run_time/3
         )
-        for elem in self.elems[idx+1:]:
-            elem.index.text = str(int(elem.index.text)-1)
+        if self.add_indices:
+            for elem in self.elems[idx+1:]:
+                elem.label.text = str(int(elem.label.text)-1)
         self.elems.remove(old_elem)
-        scene.play(self.animate.move_to(self.array_center), run_time=0.25)
-
-    def switch(self, scene: Scene, i: int, j: int):
+        self.remove(old_elem)
+        scene.play(self.animate.move_to(self.array_center), run_time=run_time/3)
+        
+    def switch(self, scene: Scene, i: int, j: int, run_time: float=0.5):
         if 0 <= i < self.n and 0 <= j < self.n and i != j:
             self.values[i], self.values[j] = self.values[j], self.values[i]
             scene.play(
-                self.elems[i].text.animate.shift(UP*2),
-                self.elems[j].text.animate.shift(UP*2),
-                run_time=0.25
+                self.elems[i].content.animate.shift(UP*2),
+                self.elems[j].content.animate.shift(UP*2),
+                run_time=run_time/3
             )
             scene.play(
-                self.elems[i].text.animate.move_to(self.elems[j].text),
-                self.elems[j].text.animate.move_to(self.elems[i].text),
-                run_time=0.25
+                self.elems[i].content.animate.move_to(self.elems[j].content),
+                self.elems[j].content.animate.move_to(self.elems[i].content),
+                run_time=run_time/3
             )
             scene.play(
-                self.elems[i].text.animate.shift(DOWN*2),
-                self.elems[j].text.animate.shift(DOWN*2),
-                run_time=0.25
+                self.elems[i].content.animate.shift(DOWN*2),
+                self.elems[j].content.animate.shift(DOWN*2),
+                run_time=run_time/3
             )
-            self.elems[i].remove(self.elems[i].text)
-            self.elems[i].add(self.elems[j].text)
-            self.elems[j].remove(self.elems[j].text)
-            self.elems[j].add(self.elems[i].text)
-            self.elems[i].text, self.elems[j].text = self.elems[j].text, self.elems[i].text
+            self.elems[i].remove(self.elems[i].content)
+            self.elems[i].add(self.elems[j].content)
+            self.elems[j].remove(self.elems[j].content)
+            self.elems[j].add(self.elems[i].content)
+            self.elems[i].content, self.elems[j].content = self.elems[j].content, self.elems[i].content
 
     def _reorder(self, scene: Scene, indices: list[int]):
         self.values = [self.values[idx] for idx in indices]
@@ -135,67 +212,33 @@ class Array(VGroup):
 
 class TestManim(Scene):
     def construct(self):
-        a = Array([20, 35, 1, 8, 100, 2, 5, 4, 80]).display(self)
-        # self.wait(1)
-        # a.insert(self, 2, 400)
-        # self.wait(1)
-        # a.insert(self, 0, 99)
-        # self.wait(1)
-        # a.insert(self, 9, 555)
-        # self.wait(1)
-        # a.insert(self, 9, 666)
-        # self.wait(1)
-        # a.insert(self, 0, 333)
-        # self.wait(1)
-        # a.pop(self)
-        # self.wait()
-        # a.pop(self, 3)
-        # self.wait()
-        # a.insert(self, 3, -9)
-        # self.wait(1)
-        # a.pop(self, 0)
-        # self.wait()
-        # a.append(self, 88)
-        # self.wait(1)
-        a.sort(self)
+        a = Array([20, 35, 1, 8, 100, 2, 5, 4, 80], 'array', inter_elem_buff=0.4)
         self.wait()
-        a.sort(self, True)
+        a.append(self, 555)
         self.wait()
-        a.insert(self, 4, 99)
+        a.append(self, 11)
         self.wait()
-        a.sort(self)
+        a.insert(self, 5, 1000000)
+        self.wait()
+        a.insert(self, 0, 'bobo')
         self.wait()
         a.pop(self)
         self.wait()
-        a.shuffle(self)
+        a.pop(self, 0)
         self.wait()
-        # self.wait(1)
-        # a.pop(self, 1)
-        # self.wait()
-        # a.sort(self)
-        # self.wait(1)
-        # a.switch(self, 1, 4)
-        # self.wait(1)
-        # a.sort(self)
-        # self.wait(1)
-        # a.switch(self, 0, 3)
-        # self.wait(1)
-        # a.sort(self, True)
-        # self.wait(1)
-        # a.append(self, 77)
-        # self.wait()
-        # a.shuffle(self)
-        # self.wait()
-        # a.pop(self, 0)
-        # self.wait()
-        # a.pop(self)
-        # self.wait()
-        # a.sort(self)
-        # self.wait()
-
-        
-
-
-
-
+        a.append(self, 46)
+        self.wait()
+        a.pop(self, 3)
+        self.wait()
+        a.append(self, 'rrrr')
+        self.wait()
+        a.pop(self, 0)
+        self.wait()
+        while a.n > 0:
+            a.pop(self, 0)
+            self.wait(0.25)
+        a.insert(self, 0, 'xx')
+        self.wait()
+        a.insert(self, 0, 'tt')
+        self.wait()
         
