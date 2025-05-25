@@ -16,6 +16,7 @@ class Element(VGroup):
             label_style: dict={'font': 'Consolas', 'font_size': 24, 'color': BLUE},
             label_direction: Vector3D=DOWN,
             label_buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
+            fit_label_to_width: bool=True
     ):
         super().__init__()
         self.value = value
@@ -24,7 +25,8 @@ class Element(VGroup):
         self.content = Text(str(value), **content_style).move_to(self.box.get_center() + content_direction)
         self.content.scale_to_fit_width(min(self.content.width, self.box.width*0.8))
         self.label = Text(str(label), **label_style)
-        self.label.scale_to_fit_width(min(self.label.width, self.box.width))
+        if fit_label_to_width:
+            self.label.scale_to_fit_width(min(self.label.width, self.box.width))
         self.label.next_to(self.box, label_direction, label_buff)
         self.add([self.box, self.content] + ([self.label] if label is not None else []))
 
