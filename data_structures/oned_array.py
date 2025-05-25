@@ -56,7 +56,7 @@ class Array(VGroup):
         self.box_style = box_style
         self.content_style, self.content_direction = content_style, content_direction
         self.label_style, self.label_direction, self.label_buff = label_style, label_direction, label_buff
-        self.add(([self.label] if array_label else []) + self.elems)
+        self.add([self.label] if array_label else [], self.elems)
         old_width = self.width
         self.scale_to_fit_width(min(self.width, max_width))
         self._update_styles_after_scaling(self.width/old_width)
@@ -68,7 +68,7 @@ class Array(VGroup):
         self.label_buff *= ratio
         self.inter_elem_buff *= ratio
     
-    def append(self, scene: Scene, value: any, run_time: float=0.5):
+    def append(self, value: any):
         self.values.append(value)
         self.n += 1
         new_elem = Element(
@@ -80,29 +80,25 @@ class Array(VGroup):
             self.label_style,
             self.label_direction,
             self.label_buff
-        ).next_to(self, RIGHT, buff=self.inter_elem_buff+1.0)
-        scene.play(Create(new_elem), run_time=run_time/3)
-        scene.play(new_elem.animate.next_to(
-            self.elems[-1] if self.n > 1 else self.label, 
-            RIGHT if self.n > 1 else -self.array_label_direction, 
-            buff=self.inter_elem_buff if self.n > 1 else self.array_label_buff
-        ), run_time=run_time/3)
+        ).next_to(self, RIGHT, buff=self.inter_elem_buff+RIGHT)
         self.elems.append(new_elem)
         self.add(new_elem)
-        old_width = self.width
-        scene.play(
-            self.animate.move_to(self.array_center).scale_to_fit_width(min(self.width, self.max_width)),
-            run_time=run_time/3
-        )
-        self._update_styles_after_scaling(self.width/old_width)
+        return Succession([
+            Create(new_elem),
+            new_elem.animate.next_to(
+                self.elems[-2] if self.n > 1 else self.label, 
+                RIGHT if self.n > 1 else -self.array_label_direction, 
+                self.inter_elem_buff if self.n > 1 else self.array_label_buff
+            )
+        ])
         
-    def insert(self, scene: Scene, idx: int, value: any, run_time: float=0.5):
+    def insert(self, idx: int, value: any):
         if idx > self.n or idx < -self.n:
             return
         elif -self.n <= idx < 0:
             idx += self.n
         if idx == self.n:
-            self.append(scene, value)
+            return self.append(value)
         else:
             self.values.insert(idx, value)
             self.n += 1
@@ -116,32 +112,28 @@ class Array(VGroup):
                 self.label_direction,
                 self.label_buff
             ).next_to(self.elems[idx], UP, buff=1.0)
-            scene.play(Create(new_elem), run_time=run_time/3)
-            scene.play(
-                new_elem.animate.move_to(self.elems[idx]),
-                *[elem.animate.shift(
-                    RIGHT*(elem.width + self.inter_elem_buff)
-                ) for elem in self.elems[idx:]],
-                *[Transform(elem.label, Text(
-                    str(int(elem.label.text)+1), **self.label_style).move_to(elem.label).shift(
+            anims = [
+                Create(new_elem),
+                AnimationGroup([
+                    new_elem.animate.move_to(self.elems[idx]),
+                    *[elem.animate.shift(
                         RIGHT*(elem.width + self.inter_elem_buff)
-                    )
-                ) for elem in self.elems[idx:]] if self.add_indices else [],
-                run_time=run_time/3
-            )
+                    ) for elem in self.elems[idx:]],
+                    *([Transform(elem.label, Text(
+                        str(int(elem.label.text)+1), **self.label_style).move_to(elem.label).shift(
+                            RIGHT*(elem.width + self.inter_elem_buff)
+                        )
+                    ) for elem in self.elems[idx:]] if self.add_indices else [])
+                ])
+            ]
             if self.add_indices:
                 for elem in self.elems[idx:]:
                     elem.label.text = str(int(elem.label.text)+1)
             self.elems.insert(idx, new_elem)
             self.add(new_elem)
-            old_width = self.width
-            scene.play(
-                self.animate.move_to(self.array_center).scale_to_fit_width(min(self.width, self.max_width)),
-                run_time=run_time/3
-            )
-            self._update_styles_after_scaling(self.width/old_width)
+            return Succession(anims)
                 
-    def pop(self, scene: Scene, idx: int=-1, run_time: float=0.5):
+    def pop(self, idx: int=-1):
         if idx >= self.n or idx < -self.n:
             return
         elif -self.n <= idx < 0:
@@ -149,104 +141,96 @@ class Array(VGroup):
         self.values.pop(idx)
         self.n -= 1
         old_elem = self.elems[idx]
-        scene.play(old_elem.animate.shift(UP*2), run_time=run_time/3)
-        scene.play(
-            Uncreate(old_elem),
-            *[elem.animate.shift(LEFT*(elem.width + self.inter_elem_buff)) for elem in self.elems[idx+1:]],
-            *[Transform(elem.label, Text(
-                str(int(elem.label.text)-1), **self.label_style).move_to(elem.label).shift(
-                    LEFT*(elem.width + self.inter_elem_buff)
-                ) 
-            ) for elem in self.elems[idx+1:]] if self.add_indices else [],
-            run_time=run_time/3
-        )
+        anims = [
+            old_elem.animate.shift(UP*2),
+            AnimationGroup([
+                Uncreate(old_elem),
+                *[elem.animate.shift(LEFT*(elem.width + self.inter_elem_buff)) for elem in self.elems[idx+1:]],
+                *([Transform(elem.label, Text(
+                    str(int(elem.label.text)-1), **self.label_style).move_to(elem.label).shift(
+                        LEFT*(elem.width + self.inter_elem_buff)
+                    ) 
+                ) for elem in self.elems[idx+1:]] if self.add_indices else []),
+            ])
+        ]
         if self.add_indices:
             for elem in self.elems[idx+1:]:
                 elem.label.text = str(int(elem.label.text)-1)
         self.elems.remove(old_elem)
         self.remove(old_elem)
-        scene.play(self.animate.move_to(self.array_center), run_time=run_time/3)
+        return Succession(anims)
         
-    def switch(self, scene: Scene, i: int, j: int, run_time: float=0.5):
+    def switch(self, i: int, j: int):
         if 0 <= i < self.n and 0 <= j < self.n and i != j:
             self.values[i], self.values[j] = self.values[j], self.values[i]
-            scene.play(
-                self.elems[i].content.animate.shift(UP*2),
-                self.elems[j].content.animate.shift(UP*2),
-                run_time=run_time/3
-            )
-            scene.play(
-                self.elems[i].content.animate.move_to(self.elems[j].content),
-                self.elems[j].content.animate.move_to(self.elems[i].content),
-                run_time=run_time/3
-            )
-            scene.play(
-                self.elems[i].content.animate.shift(DOWN*2),
-                self.elems[j].content.animate.shift(DOWN*2),
-                run_time=run_time/3
-            )
+            anims = [
+                AnimationGroup(
+                    self.elems[i].content.animate.shift(UP*2),
+                    self.elems[j].content.animate.shift(UP*2)
+                ),
+                AnimationGroup(
+                    self.elems[i].content.animate.move_to(self.elems[j].content.get_center() + UP*2),
+                    self.elems[j].content.animate.move_to(self.elems[i].content.get_center() + UP*2)
+                ),
+                AnimationGroup(
+                    self.elems[i].content.animate.move_to(self.elems[j].content),
+                    self.elems[j].content.animate.move_to(self.elems[i].content)
+                ),
+            ]
             self.elems[i].remove(self.elems[i].content)
             self.elems[i].add(self.elems[j].content)
             self.elems[j].remove(self.elems[j].content)
             self.elems[j].add(self.elems[i].content)
             self.elems[i].content, self.elems[j].content = self.elems[j].content, self.elems[i].content
+            return Succession(anims)
 
-    def _reorder(self, scene: Scene, indices: list[int], run_time: float=0.5):
+    def _reorder(self, indices: list[int]):
         self.values = [self.values[idx] for idx in indices]
-        scene.play(
-            *[self.elems[idx].animate.move_to(self.elems[i]) for i, idx in enumerate(indices)],
-            run_time=2*run_time/3
-        )
-        scene.play(
-            *[Transform(self.elems[idx].label, Text(str(i), **self.label_style).move_to(self.elems[idx].label)) 
-            for i, idx in enumerate(indices)] if self.add_indices else [],
-            run_time=run_time/3
-        )
+        anims = [
+            AnimationGroup([
+                self.elems[idx].animate.move_to(self.elems[i]) for i, idx in enumerate(indices)
+            ])
+        ]
         if self.add_indices:
+            anims.append(
+                AnimationGroup([
+                    Transform(self.elems[idx].label, Text(str(i), **self.label_style).move_to(self.elems[i].label)) 
+                    for i, idx in enumerate(indices)
+                ])
+            )
             for i, idx in enumerate(indices):
                 self.elems[idx].label.text = str(i)
         self.elems = [self.elems[idx] for idx in indices]
+        return Succession(anims)
 
-    def sort(self, scene: Scene, func=None, reverse: bool=False, run_time: float=0.5):
+    def sort(self, func=None, reverse: bool=False):
         if func:
             indices = sorted(list(range(len(self.values))), key=lambda i: func(self.values[i]), reverse=reverse)
         else:
             indices = sorted(list(range(len(self.values))), key=lambda i: self.values[i], reverse=reverse)
-        self._reorder(scene, indices, run_time)
+        return self._reorder(indices)
 
-    def shuffle(self, scene: Scene, run_time: float=0.5):
+    def shuffle(self):
         indices = sorted(list(range(len(self.values))), key=lambda _: random.random())
-        self._reorder(scene, indices, run_time)
+        return self._reorder(indices)
 
 
 class TestManim(Scene):
     def construct(self):
-        a = Array([20, 35, 1, 8, 100, 2, 5, 4, 80], 'array', inter_elem_buff=0.4)
+        a = Array([20, 35, 1, 8, 10, 12, 50], 'array', inter_elem_buff=0.4)
+        self.play(Create(a))
         self.wait()
-        a.append(self, 555)
+        self.play(a.append(88))
         self.wait()
-        a.append(self, 11)
+        self.play(a.append(99))
         self.wait()
-        a.insert(self, 5, 1000000)
+        self.play(a.insert(2, -4))
         self.wait()
-        a.insert(self, 0, 3)
+        self.play(a.switch(0, 4))
         self.wait()
-        a.pop(self)
+        self.play(a.shuffle())
         self.wait()
-        a.sort(self)
+        self.play(a.insert(0, 1))
         self.wait()
-        a.shuffle(self)
+        self.play(a.sort())
         self.wait()
-        a.insert(self, 0, 99)
-        self.wait()
-        a.pop(self)
-        self.wait()
-        a.pop(self, 0)
-        self.wait()
-        a.sort(self)
-        self.wait()
-        a.sort(self, reverse=True)
-        self.wait()
-        a.append(self, 44)
-        self.wait()
-        

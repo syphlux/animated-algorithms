@@ -17,31 +17,22 @@ class Algorithm(Scene):
             ptr.point_at(self, arr.elems[i])
             if values[i] == target:
                 found_text = Text(f'Found at index {i}', weight=BOLD, color=GREEN, font_size=50).next_to(target_elem.box, buff=0.5)
-                Element.highlight_elements(
-                    self,
-                    [target_elem, arr.elems[i]],
-                    color=GREEN,
-                    stroke_color=GREEN,
-                    label_color=GREEN,
-                    fill_opacity=1.0,
-                    restore=False,
+                self.play(
+                    target_elem.highlight(GREEN, GREEN, BLACK, GREEN, fill_opacity=1.0, restore=False),
+                    arr.elems[i].highlight(GREEN, GREEN, BLACK, GREEN, fill_opacity=1.0, restore=False),
                     run_time=0.5/anim_speed
                 )
                 self.play(Write(found_text), run_time=1/anim_speed)
                 self.wait(4/anim_speed)
                 return
-            Element.highlight_elements(
-                self, 
-                [target_elem, arr.elems[i]],
-                color=RED,
-                stroke_color=WHITE,
-                label_color=RED,
-                scale_ratio=1.0,
+            self.play(
+                target_elem.highlight(RED, WHITE, BLACK, RED, scale_ratio=1.0),
+                arr.elems[i].highlight(RED, WHITE, BLACK, RED, scale_ratio=1.0),
                 run_time=0.5/anim_speed
             )
             self.wait(0.2/anim_speed)
         not_found_text = Text('Not found', weight=BOLD, color=RED, font_size=50).next_to(target_elem.box, buff=0.5)
-        target_elem.highlight(self, color=RED, stroke_color=RED, label_color=RED, restore=False, run_time=0.5/anim_speed)
+        target_elem.highlight(self, RED, RED, BLACK, RED, restore=False, run_time=0.5/anim_speed)
         self.play(Write(not_found_text), run_time=1/anim_speed)
         self.wait(4/anim_speed)
 
