@@ -40,33 +40,58 @@ class Element(VGroup):
     def highlight(
             self,
             scene: Scene,
-            color: ParsableManimColor=YELLOW, 
-            font_color: ParsableManimColor=BLACK, 
-            scale_ratio: float=1.2, 
+            color: ParsableManimColor=YELLOW,
+            stroke_color: ParsableManimColor=YELLOW,
+            font_color: ParsableManimColor=BLACK,
+            label_color: ParsableManimColor=YELLOW,
+            fill_opacity: float=0.8,
+            scale_ratio: float=1.2,
+            restore: bool=True,
             run_time: float=0.5
     ):
         self.save_state()
         scene.play(
-            self.box.animate.set_stroke(color=color, opacity=1.0).set_color(color).set_opacity(0.8).scale(scale_ratio),
-            self.content.animate.set_color(font_color),
-            self.label.animate.scale(scale_ratio),
-            run_time=run_time/3
+            self.box.animate.set_z_index(float('inf')).set_color(color).set_stroke(color=stroke_color).set_opacity(fill_opacity).scale(scale_ratio),
+            self.content.animate.set_z_index(float('inf')).set_color(font_color).scale(scale_ratio),
+            self.label.animate.set_z_index(float('inf')).set_color(label_color).scale(scale_ratio),
+            run_time=run_time/3 if restore else run_time
         )
-        scene.wait(run_time/3)
-        scene.play(Restore(self), run_time=run_time/3)
+        if restore:
+            scene.wait(run_time/3)
+            scene.play(Restore(self), run_time=run_time/3)
+
+    @staticmethod
+    def highlight_elements(
+        scene: Scene,
+        elems: list["Element"],
+        color: ParsableManimColor=YELLOW,
+        stroke_color: ParsableManimColor=YELLOW,
+        font_color: ParsableManimColor=BLACK,
+        label_color: ParsableManimColor=YELLOW,
+        fill_opacity: float=0.8,
+        scale_ratio: float=1.2,
+        restore: bool=True,
+        run_time: float=0.5
+    ):
+        [elem.save_state() for elem in elems]
+        scene.play([anim for elem in elems for anim in 
+            [
+                elem.box.animate.set_z_index(float('inf')).set_color(color).set_stroke(color=stroke_color).set_opacity(fill_opacity).scale(scale_ratio),
+                elem.content.animate.set_z_index(float('inf')).set_color(font_color).scale(scale_ratio),
+                elem.label.animate.set_z_index(float('inf')).set_color(label_color).scale(scale_ratio),
+            ]
+        ], run_time=run_time/3 if restore else run_time)
+        if restore:
+            scene.wait(run_time/3)
+            scene.play([Restore(elem) for elem in elems], run_time=run_time/3)
 
 
 class TestElement(Scene):
     def construct(self):
         elem = Element(45, 'max')
         self.play(Create(elem))
-        self.wait(0.5)
-        elem.highlight(self)
-        self.wait()
-        elem.replace_value(self, 98)
-        print(elem.content.text)
-        self.wait()
-        self.play(elem.animate.shift(RIGHT))
+        elem2 = elem.copy().shift(RIGHT)
+        Element.highlight_elements(self, [elem, elem2], restore=False)
         self.wait()
 
         
