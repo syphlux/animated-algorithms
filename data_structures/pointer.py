@@ -6,9 +6,13 @@ from typing_extensions import TypeAlias
 Vector3D: TypeAlias = npt.NDArray[np.float64]
 
 class Pointer(VGroup):
+
+    circle = Circle(radius=0.2, color=ORANGE, fill_opacity=1.0)
+    triangle = Triangle(color=PURPLE, fill_opacity=1.0).stretch_to_fit_height(0.75).scale(0.25)
+
     def __init__(
             self, 
-            pointer_style: VMobject=Circle(radius=0.2, color=ORANGE, fill_opacity=1.0), 
+            pointer_style: VMobject=circle, 
             label: any=None,
             label_buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
             label_style: dict={'font': 'Consolas', 'font_size': 24}
