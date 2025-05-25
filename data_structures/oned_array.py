@@ -191,23 +191,32 @@ class Array(VGroup):
             self.elems[j].add(self.elems[i].content)
             self.elems[i].content, self.elems[j].content = self.elems[j].content, self.elems[i].content
 
-    def _reorder(self, scene: Scene, indices: list[int]):
+    def _reorder(self, scene: Scene, indices: list[int], run_time: float=0.5):
         self.values = [self.values[idx] for idx in indices]
         scene.play(
-            *[self.elems[idx].animate.move_to(self.elems[i]) for i, idx in enumerate(indices)]
+            *[self.elems[idx].animate.move_to(self.elems[i]) for i, idx in enumerate(indices)],
+            run_time=2*run_time/3
         )
-        scene.play(*[Transform(self.elems[idx].index, Text(str(i), font='Consolas', font_size=24).move_to(self.elems[idx].index)) for i, idx in enumerate(indices)])
-        for i, idx in enumerate(indices):
-            self.elems[idx].index.text = str(i)
-        self.elems.submobjects.sort(key=lambda elem: int(elem.index.text))
+        scene.play(
+            *[Transform(self.elems[idx].label, Text(str(i), **self.label_style).move_to(self.elems[idx].label)) 
+            for i, idx in enumerate(indices)] if self.add_indices else [],
+            run_time=run_time/3
+        )
+        if self.add_indices:
+            for i, idx in enumerate(indices):
+                self.elems[idx].label.text = str(i)
+        self.elems = [self.elems[idx] for idx in indices]
 
-    def sort(self, scene: Scene, reverse: bool=False):
-        indices = sorted(list(range(len(self.values))), key=lambda i: self.values[i], reverse=reverse)
-        self._reorder(scene, indices)
+    def sort(self, scene: Scene, func=None, reverse: bool=False, run_time: float=0.5):
+        if func:
+            indices = sorted(list(range(len(self.values))), key=lambda i: func(self.values[i]), reverse=reverse)
+        else:
+            indices = sorted(list(range(len(self.values))), key=lambda i: self.values[i], reverse=reverse)
+        self._reorder(scene, indices, run_time)
 
-    def shuffle(self, scene: Scene):
-        indices = sorted(list(range(len(self.values))), key=lambda i: random.random())
-        self._reorder(scene, indices)
+    def shuffle(self, scene: Scene, run_time: float=0.5):
+        indices = sorted(list(range(len(self.values))), key=lambda _: random.random())
+        self._reorder(scene, indices, run_time)
 
 
 class TestManim(Scene):
@@ -220,25 +229,24 @@ class TestManim(Scene):
         self.wait()
         a.insert(self, 5, 1000000)
         self.wait()
-        a.insert(self, 0, 'bobo')
+        a.insert(self, 0, 3)
+        self.wait()
+        a.pop(self)
+        self.wait()
+        a.sort(self)
+        self.wait()
+        a.shuffle(self)
+        self.wait()
+        a.insert(self, 0, 99)
         self.wait()
         a.pop(self)
         self.wait()
         a.pop(self, 0)
         self.wait()
-        a.append(self, 46)
+        a.sort(self)
         self.wait()
-        a.pop(self, 3)
+        a.sort(self, reverse=True)
         self.wait()
-        a.append(self, 'rrrr')
-        self.wait()
-        a.pop(self, 0)
-        self.wait()
-        while a.n > 0:
-            a.pop(self, 0)
-            self.wait(0.25)
-        a.insert(self, 0, 'xx')
-        self.wait()
-        a.insert(self, 0, 'tt')
+        a.append(self, 44)
         self.wait()
         
