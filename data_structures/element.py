@@ -49,16 +49,18 @@ class Element(VGroup):
             restore: bool=True,
             run_time: float=0.5
     ):
-        self.save_state()
-        scene.play(
-            self.box.animate.set_z_index(float('inf')).set_color(color).set_stroke(color=stroke_color).set_opacity(fill_opacity).scale(scale_ratio),
-            self.content.animate.set_z_index(float('inf')).set_color(font_color).scale(scale_ratio),
-            self.label.animate.set_z_index(float('inf')).set_color(label_color).scale(scale_ratio),
-            run_time=run_time/3 if restore else run_time
+        Element.highlight_elements(
+            scene, 
+            [self], 
+            color,
+            stroke_color,
+            font_color,
+            label_color,
+            fill_opacity,
+            scale_ratio,
+            restore,
+            run_time
         )
-        if restore:
-            scene.wait(run_time/3)
-            scene.play(Restore(self), run_time=run_time/3)
 
     @staticmethod
     def highlight_elements(
