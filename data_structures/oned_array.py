@@ -2,7 +2,7 @@ from manim import *
 import random
 import numpy.typing as npt
 from typing_extensions import TypeAlias
-from element import Element
+from .element import Element
         
 Vector3D: TypeAlias = npt.NDArray[np.float64]
 
