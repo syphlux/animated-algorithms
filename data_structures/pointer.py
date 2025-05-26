@@ -35,39 +35,32 @@ class Pointer(VGroup):
         )
 
     def point_at(
-            self, 
-            scene: Scene, 
+            self,
             pointed_at: Mobject, 
             direction: Vector3D|str=DOWN, 
             buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER, 
-            to_avoid: list[Vector3D|Mobject]=None, 
-            run_time: float=0.5
+            to_avoid: list[Vector3D|Mobject]=None
         ):
         if isinstance(direction, str) and direction == 'auto':
             direction = self._find_best_direction(pointed_at, to_avoid) if to_avoid != [] else DOWN
         rotation_degrees = 90 + np.degrees(np.arctan2(direction[1], direction[0]))
         target_shape = self.shape.copy().next_to(pointed_at, direction, buff).rotate((rotation_degrees-self.angle)*DEGREES)
-        scene.play(
+        anims = [
             self.shape.animate.next_to(pointed_at, direction, buff).rotate((rotation_degrees-self.angle)*DEGREES),
-            self.label.animate.next_to(target_shape, direction, self.label_buff),
-            run_time=run_time
-        )
+            self.label.animate.next_to(target_shape, direction, self.label_buff)
+        ]
         self.angle = rotation_degrees
+        return AnimationGroup(anims)
 
 
 class TestPointer(Scene):
     def construct(self):
         d = Square(z_index=float('inf')).shift(UL)
-        p = Pointer(label='curr')
+        p = Pointer(Pointer.triangle, label='curr')
         self.play(Create(d))
-        p.point_at(self, d, UP, buff=0.0)
+        self.wait()
+        self.play(p.point_at(self, d, UP, buff=0.0))
         self.wait(0.5)
-        p.point_at(self, d, DOWN, buff=0.0)
-        self.wait(0.5)
-        p.point_at(self, d, LEFT, buff=0.0)
-        self.wait(0.5)
-        p.point_at(self, d, UR, buff=0.0)
-        self.wait(0.5)
-        p.point_at(self, d, DL, buff=0.0)
+        self.play(p.point_at(self, d, UP, buff=0.0))
         self.wait(0.5)
                 
