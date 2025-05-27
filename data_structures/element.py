@@ -28,6 +28,7 @@ class Element(VGroup):
         self.content.scale_to_fit_width(min(self.content.width, self.box.width*0.8))
         self.label_style = {'font': 'Consolas', 'font_size': 24, 'color': BLUE}
         self.label_style.update(label_style)
+        self.label_direction = label_direction
         self.label = Text(str(label), **self.label_style)
         self.show_label = label is not None
         if fit_label_to_width:
@@ -63,7 +64,7 @@ class Element(VGroup):
             ).scale(scale_ratio).shift(shift),
             [self.label.animate.set_z_index(float('inf')).set_color(
                 label_color
-            ).scale(scale_ratio).shift(shift)] if self.show_label else []
+            ).scale(scale_ratio).shift(shift + self.label_direction*(scale_ratio-1)*1.5)] if self.show_label else []
         )
         return Succession(
             anim_group, *[Wait(0.2), Restore(self)] if restore else []
