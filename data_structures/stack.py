@@ -42,7 +42,7 @@ class Stack(VGroup):
             stack_label_direction: Vector3D=DOWN,
             stack_label_buff: float=DEFAULT_MOBJECT_TO_MOBJECT_BUFFER,
             stack_label_style: dict={'font_size': 28},
-            stack_center: Vector3D=ORIGIN,
+            stack_bottom: Vector3D=config.frame_height/2*0.9*DOWN,
             inter_elem_buff: float=0.0,
             max_height: float=config.frame_height*0.9,
             box_style: VMobject=StackElement(),
@@ -68,18 +68,18 @@ class Stack(VGroup):
             ) for i, v in enumerate(values)
         ]
         print(inter_elem_buff, content_direction)
-        VGroup(self.elems).arrange(UP, buff=inter_elem_buff).move_to(stack_center)
+        VGroup(self.elems).arrange(UP, buff=inter_elem_buff)
         self.label = Text(
             str(stack_label), **stack_label_style
         ).next_to(self.elems[0], stack_label_direction, stack_label_buff)
-        self.stack_center = stack_center
+        self.stack_bottom = stack_bottom
         self.stack_label_direction, self.stack_label_buff = stack_label_direction, stack_label_buff
         self.inter_elem_buff = inter_elem_buff
         self.add_indices = False
         self.max_height = max_height
         self.box_style = box_style
         self.content_style, self.content_direction = content_style, content_direction
-        self.add([self.label] if stack_label else [], self.elems)
+        self.add([self.label] if stack_label else [], self.elems).next_to(stack_bottom, UP, buff=0.0)
         old_height = self.height
         self.scale_to_fit_height(min(self.height, max_height))
         self._update_styles_after_scaling(self.height/old_height)
@@ -89,8 +89,35 @@ class Stack(VGroup):
         self.content_style['font_size'] = self.content_style.get('font_size', 32)*ratio
         self.inter_elem_buff *= ratio
 
+    def push(self, value: any, initial_pos: Vector3D=None, anim_type: Animation=Create) -> Succession:
+        self.values.append(value)
+        self.n += 1
+        new_elem = Element(
+            value, 
+            None, 
+            self.box_style, 
+            self.content_style,
+            self.content_direction
+        )
+        new_elem.move_to(self.elems[-1].get_corner(UR) + UR if initial_pos is None else initial_pos)
+        self.elems.append(new_elem)
+        self.add(new_elem)
+        return Succession([
+            anim_type(new_elem),
+            new_elem.animate.next_to(
+                self.elems[-2] if self.n > 1 else self.label, 
+                UP if self.n > 1 else -self.stack_label_direction, 
+                self.inter_elem_buff if self.n > 1 else self.stack_label_buff
+            )
+        ])
+    
 
 class TestStack(Scene):
     def construct(self):
         stack = Stack([45, 0, 'ff', -9, 85, 0], 'stack', box_style=StackElement(1.0, 1.5), content_style={'font_size': 20})
-        self.add(stack)
+        self.play(FadeIn(stack))
+        self.wait()
+        self.play(stack.push(36, initial_pos=UL*4))
+        self.wait()
+        self.play(stack.push(88, anim_type=FadeIn))
+        self.wait()
