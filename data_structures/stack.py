@@ -22,13 +22,18 @@ class StackElement(VGroup):
             color=fill_color, opacity=fill_opacity
         ).stretch_to_fit_height(ellipse_height/2)
         left_edge = Line(
-            bottom_arc.get_left() + ellipse_height/5*UP, bottom_arc.get_left() + (ellipse_height/5+self.body_height)*UP,
+            bottom_arc.get_left() + ellipse_height/5*UP, 
+            bottom_arc.get_left() + (ellipse_height/5+self.body_height)*UP,
             color=stroke_color
         )
         right_edge = left_edge.copy().shift(width*RIGHT)
-        top_ellipse = Ellipse(width=width, height=ellipse_height).set_fill(fill_color, fill_opacity).set_stroke(stroke_color).move_to(left_edge.get_end() + width/2 * RIGHT)
+        top_ellipse = Ellipse(width=width, height=ellipse_height).set_fill(
+            fill_color, fill_opacity
+        ).set_stroke(stroke_color).move_to(left_edge.get_end() + width/2 * RIGHT)
         rectangle = Rectangle(height=self.body_height, width=width).next_to(left_edge, buff=0.0)
-        rectangle = Difference(Difference(rectangle, top_ellipse), bottom_arc).set_fill(fill_color, fill_opacity).set_stroke(None, width=0.0, opacity=0.0)
+        rectangle = Difference(
+            Difference(rectangle, top_ellipse), bottom_arc
+        ).set_fill(fill_color, fill_opacity).set_stroke(None, width=0.0, opacity=0.0)
         super().__init__(bottom_arc, left_edge, right_edge, rectangle, top_ellipse)
         self.center()
 
