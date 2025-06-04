@@ -20,7 +20,7 @@ class StackElement(VGroup):
         self.ellipse_height = ellipse_height
         bottom_arc = Arc(radius=width/2, angle=-PI).set_fill(
             color=fill_color, opacity=fill_opacity
-        ).stretch_to_fit_height(ellipse_height/2)
+        ).set_stroke(stroke_color).stretch_to_fit_height(ellipse_height/2)
         left_edge = Line(
             bottom_arc.get_left() + ellipse_height/5*UP, 
             bottom_arc.get_left() + (ellipse_height/5+self.body_height)*UP,
@@ -62,6 +62,15 @@ class Stack(VGroup):
         if isinstance(box_style, StackElement):
             inter_elem_buff += box_style.ellipse_height*DOWN
             content_direction = content_direction.copy() + box_style.ellipse_height/2*DOWN
+            self.base = Arc(
+                radius=box_style.width/2, angle=-PI, stroke_width=10.0
+            ).stretch_to_fit_height(box_style.ellipse_height/2)
+        else:
+            self.base = VMobject(stroke_width=10.0).start_new_path(ORIGIN)
+            for point in [
+                box_style.height/2*DOWN, box_style.height/2*DOWN + box_style.width*RIGHT, box_style.width*RIGHT
+            ]:
+                self.base.add_line_to(point)
         self.elems = [
             Element(
                 v,
@@ -71,11 +80,12 @@ class Stack(VGroup):
                 content_direction
             ) for i, v in enumerate(values)
         ]
-        print(inter_elem_buff, content_direction)
         VGroup(self.elems).arrange(UP, buff=inter_elem_buff)
+        self.base.next_to(VGroup(self.elems), DOWN, buff=-self.base.height)
         self.label = Text(
             str(stack_label), **stack_label_style
-        ).next_to(self.elems[0] if self.n > 0 else stack_bottom, stack_label_direction, stack_label_buff)
+        ).next_to(self.base, stack_label_direction, stack_label_buff)
+        self.base.add_to_back
         self.stack_bottom = stack_bottom
         self.stack_label_direction, self.stack_label_buff = stack_label_direction, stack_label_buff
         self.inter_elem_buff = inter_elem_buff
@@ -83,11 +93,10 @@ class Stack(VGroup):
         self.max_height = max_height
         self.box_style = box_style
         self.content_style, self.content_direction = content_style, content_direction
-        self.add([self.label] if stack_label else [], self.elems).next_to(stack_bottom, UP, buff=0.0)
+        self.add(self.elems, [self.label] if stack_label else [], self.base).next_to(stack_bottom, UP, buff=0.0)
         old_height = self.height
-        if old_height != 0:
-            self.scale_to_fit_height(min(self.height, max_height))
-            self._update_styles_after_scaling(self.height/old_height)
+        self.scale_to_fit_height(min(self.height, max_height))
+        self._update_styles_after_scaling(self.height/old_height)
 
     def _update_styles_after_scaling(self, ratio: float):
         self.box_style.scale(ratio)
@@ -104,13 +113,14 @@ class Stack(VGroup):
             self.content_style,
             self.content_direction
         ).next_to(
-            self.elems[-1] if self.n > 1 else self.label, 
-            UP if self.n > 1 else -self.stack_label_direction, 
-            self.inter_elem_buff if self.n > 1 else self.stack_label_buff
+            self.elems[-1] if self.n > 1 else self.base, 
+            UP,
+            self.inter_elem_buff if self.n > 1 else -self.base.height
         )
         src_pos = src_pos if src_pos is not None else self.get_corner(UR) + UR
         self.elems.append(new_elem)
         self.add(new_elem)
+        self.base.set_z_index(new_elem.z_index+1)
         return FadeIn(new_elem, target_position=src_pos)
     
     def pop(self, dest_pos: Vector3D=None) -> Succession:
@@ -126,16 +136,12 @@ class Stack(VGroup):
 
 class TestStack(Scene):
     def construct(self):
-        stack = Stack([], box_style=StackElement(1.0, 1.5), content_style={'font_size': 20})
-        self.play(FadeIn(stack))
-        e = Element(45, 'max', label_direction=UP).shift(UL*3)
-        self.add(e)
+        stack = Stack([], 'stack', box_style=Square(1), content_style={'font_size': 20})
+        self.add(stack)
         self.wait()
-        self.play(stack.push(e.value, src_pos=e.get_center()))
-        self.wait()
-        self.play(stack.pop())
-        self.play(stack.push(88))
-        self.wait()
-        self.play(stack.pop(dest_pos=e.get_center()))
-        self.wait()
+        self.play(stack.push(45))
+        self.play(stack.push(45))
+        self.play(stack.push(45))
+        self.play(stack.push(45))
+        self.play(stack.push(45))
         
