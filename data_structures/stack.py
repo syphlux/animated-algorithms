@@ -57,7 +57,7 @@ class Stack(VGroup):
         self.n = len(values)
         if isinstance(box_style, StackElement):
             inter_elem_buff += box_style.ellipse_height*DOWN
-            content_direction += box_style.ellipse_height/2*DOWN
+            content_direction = content_direction.copy() + box_style.ellipse_height/2*DOWN
         self.elems = [
             Element(
                 v,
@@ -92,5 +92,5 @@ class Stack(VGroup):
 
 class TestStack(Scene):
     def construct(self):
-        stack = Stack([45, 0, 'ff', -9, 85, 0], 'stack')
+        stack = Stack([45, 0, 'ff', -9, 85, 0], 'stack', box_style=StackElement(1.0, 1.5), content_style={'font_size': 20})
         self.add(stack)
