@@ -49,8 +49,7 @@ class Stack(VGroup):
             content_style: dict={'font_size': 32},
             content_direction: Vector3D=ORIGIN
     ):
-        assert isinstance(values, list) and len(values) > 0, \
-            "values must be a non-empty list"
+        assert isinstance(values, list), "values must be a list"
         
         super().__init__()
         self.values: list = values
@@ -71,7 +70,7 @@ class Stack(VGroup):
         VGroup(self.elems).arrange(UP, buff=inter_elem_buff)
         self.label = Text(
             str(stack_label), **stack_label_style
-        ).next_to(self.elems[0], stack_label_direction, stack_label_buff)
+        ).next_to(self.elems[0] if self.n > 0 else stack_bottom, stack_label_direction, stack_label_buff)
         self.stack_bottom = stack_bottom
         self.stack_label_direction, self.stack_label_buff = stack_label_direction, stack_label_buff
         self.inter_elem_buff = inter_elem_buff
@@ -81,15 +80,16 @@ class Stack(VGroup):
         self.content_style, self.content_direction = content_style, content_direction
         self.add([self.label] if stack_label else [], self.elems).next_to(stack_bottom, UP, buff=0.0)
         old_height = self.height
-        self.scale_to_fit_height(min(self.height, max_height))
-        self._update_styles_after_scaling(self.height/old_height)
+        if old_height != 0:
+            self.scale_to_fit_height(min(self.height, max_height))
+            self._update_styles_after_scaling(self.height/old_height)
 
     def _update_styles_after_scaling(self, ratio: float):
         self.box_style.scale(ratio)
         self.content_style['font_size'] = self.content_style.get('font_size', 32)*ratio
         self.inter_elem_buff *= ratio
 
-    def push(self, value: any, initial_pos: Vector3D=None, anim_type: Animation=Create) -> Succession:
+    def push(self, value: any, src_pos: Vector3D=None) -> Succession:
         self.values.append(value)
         self.n += 1
         new_elem = Element(
@@ -98,26 +98,39 @@ class Stack(VGroup):
             self.box_style, 
             self.content_style,
             self.content_direction
+        ).next_to(
+            self.elems[-1] if self.n > 1 else self.label, 
+            UP if self.n > 1 else -self.stack_label_direction, 
+            self.inter_elem_buff if self.n > 1 else self.stack_label_buff
         )
-        new_elem.move_to(self.elems[-1].get_corner(UR) + UR if initial_pos is None else initial_pos)
+        src_pos = src_pos if src_pos is not None else self.get_corner(UR) + UR
         self.elems.append(new_elem)
         self.add(new_elem)
-        return Succession([
-            anim_type(new_elem),
-            new_elem.animate.next_to(
-                self.elems[-2] if self.n > 1 else self.label, 
-                UP if self.n > 1 else -self.stack_label_direction, 
-                self.inter_elem_buff if self.n > 1 else self.stack_label_buff
-            )
-        ])
+        return FadeIn(new_elem, target_position=src_pos)
+    
+    def pop(self, dest_pos: Vector3D=None) -> Succession:
+        if self.n == 0:
+            return Wait(0.5)
+        self.values.pop()
+        self.n -= 1
+        old_elem = self.elems.pop()
+        self.remove(old_elem)
+        dest_pos = dest_pos if dest_pos is not None else old_elem.get_center() + UR
+        return FadeOut(old_elem, target_position=dest_pos)
     
 
 class TestStack(Scene):
     def construct(self):
-        stack = Stack([45, 0, 'ff', -9, 85, 0], 'stack', box_style=StackElement(1.0, 1.5), content_style={'font_size': 20})
+        stack = Stack([], box_style=StackElement(1.0, 1.5), content_style={'font_size': 20})
         self.play(FadeIn(stack))
+        e = Element(45, 'max', label_direction=UP).shift(UL*3)
+        self.add(e)
         self.wait()
-        self.play(stack.push(36, initial_pos=UL*4))
+        self.play(stack.push(e.value, src_pos=e.get_center()))
         self.wait()
-        self.play(stack.push(88, anim_type=FadeIn))
+        self.play(stack.pop())
+        self.play(stack.push(88))
         self.wait()
+        self.play(stack.pop(dest_pos=e.get_center()))
+        self.wait()
+        
