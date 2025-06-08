@@ -20,7 +20,7 @@ class Pointer(VGroup):
         super().__init__()
         self.shape = pointer_style.copy()
         self.label_buff = label_buff
-        self.label = Text(label, **label_style).next_to(self.shape, buff=label_buff)
+        self.label = Text(label if label is not None else '', **label_style).next_to(self.shape, buff=label_buff)
         self.angle = 0
         self.add([self.shape] + ([self.label] if label is not None else []))
         
