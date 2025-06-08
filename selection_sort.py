@@ -6,7 +6,8 @@ from data_structures.pointer import Pointer
 class Algorithm(Scene):
 
     def selection_sort(self, values: list[any]):
-        arr = Array(values).display(self)
+        arr = Array(values)
+        self.play(Create(arr))
         separator = Line(ORIGIN, UP*5).next_to(arr.elems[0], LEFT, 0.0)
         sorted_label = Text('sorted', font='Arial', font_size=28).next_to(separator, UL)
         unsorted_label = Text('unsorted', font='Arial', font_size=28).next_to(separator, UR)
