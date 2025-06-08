@@ -1,7 +1,7 @@
 from manim import *
 import numpy.typing as npt
 from typing_extensions import TypeAlias
-from element import Element
+from .element import Element
 
 
 Vector3D: TypeAlias = npt.NDArray[np.float64]
@@ -85,7 +85,6 @@ class Stack(VGroup):
         self.label = Text(
             str(stack_label), **stack_label_style
         ).next_to(self.base, stack_label_direction, stack_label_buff)
-        self.base.add_to_back
         self.stack_bottom = stack_bottom
         self.stack_label_direction, self.stack_label_buff = stack_label_direction, stack_label_buff
         self.inter_elem_buff = inter_elem_buff
@@ -93,16 +92,18 @@ class Stack(VGroup):
         self.max_height = max_height
         self.box_style = box_style
         self.content_style, self.content_direction = content_style, content_direction
-        self.add(self.elems, [self.label] if stack_label else [], self.base).next_to(stack_bottom, UP, buff=0.0)
+        self.add(self.elems, [self.label] if stack_label else [], self.base)
         old_height = self.height
         self.scale_to_fit_height(min(self.height, max_height))
         self._update_styles_after_scaling(self.height/old_height)
+        self.next_to(stack_bottom, UP, buff=0.0)
 
     def _update_styles_after_scaling(self, ratio: float):
         self.box_style.scale(ratio)
         self.content_style['font_size'] = self.content_style.get('font_size', 32)*ratio
+        self.content_direction *= ratio
         self.inter_elem_buff *= ratio
-
+        
     def push(self, value: any, src_pos: Vector3D=None) -> Succession:
         self.values.append(value)
         self.n += 1
@@ -121,6 +122,17 @@ class Stack(VGroup):
         self.elems.append(new_elem)
         self.add(new_elem)
         self.base.set_z_index(new_elem.z_index+1)
+        anims = [FadeIn(new_elem, target_position=src_pos)]
+        if self.height > self.max_height:
+            old_height = self.height
+            anims= [
+                FadeIn(new_elem, target_position=src_pos),
+                self.animate.scale_to_fit_height(self.max_height).next_to(
+                    self.stack_bottom, UP, buff=0.0
+                )
+            ]
+            self._update_styles_after_scaling(self.max_height/old_height)
+            return Succession(anims)
         return FadeIn(new_elem, target_position=src_pos)
     
     def pop(self, dest_pos: Vector3D=None) -> Succession:
@@ -136,7 +148,7 @@ class Stack(VGroup):
 
 class TestStack(Scene):
     def construct(self):
-        stack = Stack([], 'stack', box_style=Square(1), content_style={'font_size': 20})
+        stack = Stack([1, 1, 2, 3, 4, 5, 6, 7, 8], 'stack', box_style=StackElement(1.3, 2), content_style={'font_size': 20})
         self.add(stack)
         self.wait()
         self.play(stack.push(45))
